@@ -53,28 +53,33 @@ const LoadingSkeleton = () => {
   );
 };
 
+const Header = reatomComponent(() => {
+  const stats = todayStats();
+  return (
+    <header className="flex items-center justify-between pb-2 pt-4">
+      <div>
+        <h1 className="font-heading text-2xl font-bold text-foreground">habitit</h1>
+        <p className="text-sm capitalize text-muted-foreground">{formatDisplayDate()}</p>
+      </div>
+
+      {habitList().length > 0 && (
+        <div className="relative flex items-center justify-center">
+          <ProgressRing progress={stats.progress} />
+          <span className="absolute text-xs font-semibold text-foreground">
+            {stats.completed}/{stats.total}
+          </span>
+        </div>
+      )}
+    </header>
+  );
+});
+
 const App = reatomComponent(() => {
   const hydrated = isHydrated();
-  const stats = todayStats();
 
   return (
     <div className="mx-auto flex min-h-dvh max-w-lg flex-col px-3 pb-20">
-      <header className="flex items-center justify-between pb-2 pt-4">
-        <div>
-          <h1 className="font-heading text-2xl font-bold text-foreground">habitit</h1>
-          <p className="text-sm capitalize text-muted-foreground">{formatDisplayDate()}</p>
-        </div>
-
-        {habitList().length > 0 && (
-          <div className="relative flex items-center justify-center">
-            <ProgressRing progress={stats.progress} />
-            <span className="absolute text-xs font-semibold text-foreground">
-              {stats.completed}/{stats.total}
-            </span>
-          </div>
-        )}
-      </header>
-
+      <Header />
       <Tabs defaultValue="today" className="flex-1 py-2">
         <TabsList className="w-full">
           <TabsTrigger value="today" className="flex-1">

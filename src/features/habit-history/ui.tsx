@@ -2,6 +2,7 @@ import { reatomComponent } from "@reatom/react";
 import { Check } from "lucide-react";
 
 import { groupedHistory, habitList, historyFilter } from "@/entities/habit/model";
+import { HABIT_TRACKING_TYPE } from "@/entities/habit/types";
 import type { Completion, Habit } from "@/entities/habit/types";
 import { formatHistoryDate, formatTime } from "@/shared/lib/date";
 import { pluralizeHabits } from "@/shared/lib/pluralize";
@@ -12,14 +13,14 @@ import { Separator } from "@/shared/ui/separator";
 import { Toggle } from "@/shared/ui/toggle";
 
 const CompletionDetail = ({ habit, entry }: { habit: Habit; entry: Completion }) => {
-  if (habit.trackingType === "numeric" && entry.value !== undefined) {
+  if (habit.trackingType === HABIT_TRACKING_TYPE.NUMERIC && entry.value !== undefined) {
     return (
       <Badge variant="secondary">
         {entry.value}/{habit.target}
       </Badge>
     );
   }
-  if (habit.trackingType === "schedule" && entry.slot) {
+  if (habit.trackingType === HABIT_TRACKING_TYPE.SCHEDULE && entry.slot) {
     return <Badge variant="outline">{entry.slot}</Badge>;
   }
   return <Check className="size-4 text-primary" />;

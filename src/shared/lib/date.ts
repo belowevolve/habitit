@@ -36,11 +36,7 @@ export const formatHistoryDate = (dateStr: string): string => {
   }
 
   const date = new Date(`${dateStr}T00:00:00`);
-  return date.toLocaleDateString("ru-RU", {
-    day: "numeric",
-    month: "long",
-    weekday: "short",
-  });
+  return formatDisplayDate(date);
 };
 
 export const daysBetween = (a: string, b: string): number => {

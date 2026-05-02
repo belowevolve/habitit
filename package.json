@@ -7,8 +7,7 @@
     "dev": "vite",
     "build": "tsc -b && vite build",
     "preview": "vite preview",
-    "check": "ultracite check",
-    "fix": "ultracite fix",
+    "lint": "oxlint",
     "prepare": "husky"
   },
   "dependencies": {

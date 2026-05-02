@@ -1,5 +1,13 @@
-export type TrackingType = "boolean" | "numeric" | "schedule";
+export const HABIT_TRACKING_TYPE = {
+  BOOLEAN: "BOOLEAN",
+  NUMERIC: "NUMERIC",
+  SCHEDULE: "SCHEDULE",
+} as const;
+
+export type TrackingType = (typeof HABIT_TRACKING_TYPE)[keyof typeof HABIT_TRACKING_TYPE];
+
 interface HabitBase {
+  trackingType: TrackingType;
   id: string;
   title: string;
   emoji: string;
@@ -8,16 +16,16 @@ interface HabitBase {
 }
 
 export interface BooleanHabit extends HabitBase {
-  trackingType: "boolean";
+  trackingType: typeof HABIT_TRACKING_TYPE.BOOLEAN;
 }
 
 export interface NumericHabit extends HabitBase {
-  trackingType: "numeric";
+  trackingType: typeof HABIT_TRACKING_TYPE.NUMERIC;
   target: number;
 }
 
 export interface ScheduleHabit extends HabitBase {
-  trackingType: "schedule";
+  trackingType: typeof HABIT_TRACKING_TYPE.SCHEDULE;
   slots: string[];
 }
 

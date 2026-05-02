@@ -12,6 +12,7 @@ import {
   toggleSlotCompletion,
 } from "@/entities/habit/model";
 import { getQuickAdds } from "@/entities/habit/tracking-strategies";
+import { HABIT_TRACKING_TYPE } from "@/entities/habit/types";
 import type { Habit, NumericHabit, ScheduleHabit } from "@/entities/habit/types";
 import { cn } from "@/shared/lib/css";
 import { pluralizeDays } from "@/shared/lib/pluralize";
@@ -128,11 +129,11 @@ const HabitItem = reatomComponent(({ habit }: { habit: Habit }) => {
         status.completed && "border-primary/20 bg-primary/5",
       )}
     >
-      {habit.trackingType === "boolean" && (
+      {habit.trackingType === HABIT_TRACKING_TYPE.BOOLEAN && (
         <BooleanControl id={habit.id} title={habit.title} emoji={habit.emoji} />
       )}
 
-      {habit.trackingType !== "boolean" && (
+      {habit.trackingType !== HABIT_TRACKING_TYPE.BOOLEAN && (
         <span className="flex size-10 shrink-0 items-center justify-center rounded-xl bg-muted text-lg">
           {habit.emoji}
         </span>
@@ -159,8 +160,8 @@ const HabitItem = reatomComponent(({ habit }: { habit: Habit }) => {
         )}
       </button>
 
-      {habit.trackingType === "numeric" && <NumericControl habit={habit} />}
-      {habit.trackingType === "schedule" && <ScheduleControl habit={habit} />}
+      {habit.trackingType === HABIT_TRACKING_TYPE.NUMERIC && <NumericControl habit={habit} />}
+      {habit.trackingType === HABIT_TRACKING_TYPE.SCHEDULE && <ScheduleControl habit={habit} />}
     </li>
   );
 }, "HabitItem");

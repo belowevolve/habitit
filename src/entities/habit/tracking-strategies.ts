@@ -1,3 +1,4 @@
+import { HABIT_TRACKING_TYPE } from "./types";
 import type { Completion, Habit, HabitCompletionStatus, TrackingType } from "./types";
 
 export interface TrackingStrategy {
@@ -17,7 +18,7 @@ const booleanStrategy: TrackingStrategy = {
 
 const numericStrategy: TrackingStrategy = {
   getStatus(habit, dayCompletions) {
-    if (habit.trackingType !== "numeric") {
+    if (habit.trackingType !== HABIT_TRACKING_TYPE.NUMERIC) {
       throw new Error("unreachable: numeric strategy called with non-numeric habit");
     }
     const entry = dayCompletions.find((c) => !c.slot);
@@ -30,7 +31,7 @@ const numericStrategy: TrackingStrategy = {
     };
   },
   isCompleted(habit, dayCompletions) {
-    if (habit.trackingType !== "numeric") {
+    if (habit.trackingType !== HABIT_TRACKING_TYPE.NUMERIC) {
       return false;
     }
     const entry = dayCompletions.find((c) => !c.slot);
@@ -40,7 +41,7 @@ const numericStrategy: TrackingStrategy = {
 
 const scheduleStrategy: TrackingStrategy = {
   getStatus(habit, dayCompletions) {
-    if (habit.trackingType !== "schedule") {
+    if (habit.trackingType !== HABIT_TRACKING_TYPE.SCHEDULE) {
       throw new Error("unreachable: schedule strategy called with non-schedule habit");
     }
     const completedSlots = dayCompletions
@@ -54,7 +55,7 @@ const scheduleStrategy: TrackingStrategy = {
     };
   },
   isCompleted(habit, dayCompletions) {
-    if (habit.trackingType !== "schedule") {
+    if (habit.trackingType !== HABIT_TRACKING_TYPE.SCHEDULE) {
       return false;
     }
     const completed = dayCompletions.filter((c) => c.slot);
@@ -63,9 +64,9 @@ const scheduleStrategy: TrackingStrategy = {
 };
 
 const strategies: Record<TrackingType, TrackingStrategy> = {
-  boolean: booleanStrategy,
-  numeric: numericStrategy,
-  schedule: scheduleStrategy,
+  [HABIT_TRACKING_TYPE.BOOLEAN]: booleanStrategy,
+  [HABIT_TRACKING_TYPE.NUMERIC]: numericStrategy,
+  [HABIT_TRACKING_TYPE.SCHEDULE]: scheduleStrategy,
 };
 
 export const getStrategy = (trackingType: TrackingType): TrackingStrategy =>

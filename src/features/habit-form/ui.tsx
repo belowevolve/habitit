@@ -12,6 +12,7 @@ import {
   habits,
   selectedHabitId,
 } from "@/entities/habit/model";
+import { HABIT_TRACKING_TYPE } from "@/entities/habit/types";
 import type { Habit, NewHabit, TrackingType } from "@/entities/habit/types";
 import { cn } from "@/shared/lib/css";
 import { Badge } from "@/shared/ui/badge";
@@ -57,13 +58,17 @@ const ALL_EMOJIS = EMOJI_CATEGORIES.flatMap((c) => c.emojis);
 const FREQUENCY_SET: ReadonlySet<string> = new Set(["daily", "weekly"]);
 const isFrequency = (v: string): v is "daily" | "weekly" => FREQUENCY_SET.has(v);
 
-const TRACKING_TYPE_SET: ReadonlySet<string> = new Set(["boolean", "numeric", "schedule"]);
+const TRACKING_TYPE_SET: ReadonlySet<string> = new Set([
+  HABIT_TRACKING_TYPE.SCHEDULE,
+  HABIT_TRACKING_TYPE.NUMERIC,
+  HABIT_TRACKING_TYPE.SCHEDULE,
+]);
 const isTrackingType = (v: string): v is TrackingType => TRACKING_TYPE_SET.has(v);
 
 const TRACKING_LABELS: Record<TrackingType, string> = {
-  boolean: "Да / Нет",
-  numeric: "Счётчик",
-  schedule: "Расписание",
+  [HABIT_TRACKING_TYPE.BOOLEAN]: "Да / Нет",
+  [HABIT_TRACKING_TYPE.NUMERIC]: "Счётчик",
+  [HABIT_TRACKING_TYPE.SCHEDULE]: "Расписание",
 };
 
 const EmojiPicker = ({ value, onChange }: { value: string; onChange: (emoji: string) => void }) => {
@@ -99,10 +104,14 @@ const HabitForm = ({ habit }: { habit?: Habit }) => {
   const [title, setTitle] = useState(habit?.title ?? "");
   const [emoji, setEmoji] = useState(habit?.emoji ?? ALL_EMOJIS[0]);
   const [frequency, setFrequency] = useState<"daily" | "weekly">(habit?.frequency ?? "daily");
-  const [trackingType, setTrackingType] = useState<TrackingType>(habit?.trackingType ?? "boolean");
-  const [target, setTarget] = useState(habit?.trackingType === "numeric" ? habit.target : 10);
+  const [trackingType, setTrackingType] = useState<TrackingType>(
+    habit?.trackingType ?? HABIT_TRACKING_TYPE.BOOLEAN,
+  );
+  const [target, setTarget] = useState(
+    habit?.trackingType === HABIT_TRACKING_TYPE.NUMERIC ? habit.target : 10,
+  );
   const [slots, setSlots] = useState<string[]>(
-    habit?.trackingType === "schedule" ? habit.slots : ["Утро", "Вечер"],
+    habit?.trackingType === HABIT_TRACKING_TYPE.SCHEDULE ? habit.slots : ["Утро", "Вечер"],
   );
   const [newSlot, setNewSlot] = useState("");
 
@@ -116,15 +125,15 @@ const HabitForm = ({ habit }: { habit?: Habit }) => {
     const base = { emoji, frequency, title: trimmed };
     let payload: NewHabit;
     switch (trackingType) {
-      case "boolean": {
+      case HABIT_TRACKING_TYPE.BOOLEAN: {
         payload = { ...base, trackingType };
         break;
       }
-      case "numeric": {
+      case HABIT_TRACKING_TYPE.NUMERIC: {
         payload = { ...base, target, trackingType };
         break;
       }
-      case "schedule": {
+      case HABIT_TRACKING_TYPE.SCHEDULE: {
         payload = { ...base, slots, trackingType };
         break;
       }
@@ -222,7 +231,7 @@ const HabitForm = ({ habit }: { habit?: Habit }) => {
           </ToggleGroup>
         </Field>
 
-        {trackingType === "numeric" && (
+        {trackingType === HABIT_TRACKING_TYPE.NUMERIC && (
           <Field>
             <FieldLabel htmlFor="habit-target">Цель (количество)</FieldLabel>
             <div className="flex items-center gap-2">
@@ -254,7 +263,7 @@ const HabitForm = ({ habit }: { habit?: Habit }) => {
           </Field>
         )}
 
-        {trackingType === "schedule" && (
+        {trackingType === HABIT_TRACKING_TYPE.SCHEDULE && (
           <Field>
             <FieldTitle>Расписание</FieldTitle>
             <div className="flex flex-col gap-2">
