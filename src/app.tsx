@@ -1,11 +1,14 @@
-import { useAtom } from "@reatom/react";
+import { reatomComponent } from "@reatom/react";
 import { Plus } from "lucide-react";
 
-import { habits, openAddDrawer, todayCompletions, todayProgress } from "@/entities/habit/model";
+import { habitList, isHydrated, openAddDrawer, todayStats } from "@/entities/habit/model";
 import { HabitFormDrawer } from "@/features/habit-form/ui";
+import { HabitHistory } from "@/features/habit-history/ui";
 import { HabitList } from "@/features/habit-list/ui";
 import { formatDisplayDate } from "@/shared/lib/date";
 import { Button } from "@/shared/ui/button";
+import { Skeleton } from "@/shared/ui/skeleton";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/shared/ui/tabs";
 
 const ProgressRing = ({ progress }: { progress: number }) => {
   const radius = 18;
@@ -40,47 +43,71 @@ const ProgressRing = ({ progress }: { progress: number }) => {
   );
 };
 
-const App = () => {
-  const [habitList] = useAtom(habits);
-  const [completed] = useAtom(todayCompletions);
-  const [progress] = useAtom(todayProgress);
+const LoadingSkeleton = () => {
+  return (
+    <div className="flex flex-col gap-2 py-3">
+      <Skeleton className="h-16 w-full rounded-xl" />
+      <Skeleton className="h-16 w-full rounded-xl" />
+      <Skeleton className="h-16 w-full rounded-xl" />
+    </div>
+  );
+};
+
+const App = reatomComponent(() => {
+  const hydrated = isHydrated();
+  const stats = todayStats();
 
   return (
-    <div className="mx-auto flex min-h-dvh max-w-lg flex-col px-4 pb-24">
-      <header className="flex items-center justify-between pb-2 pt-6">
+    <div className="mx-auto flex min-h-dvh max-w-lg flex-col px-3 pb-20">
+      <header className="flex items-center justify-between pb-2 pt-4">
         <div>
           <h1 className="font-heading text-2xl font-bold text-foreground">habitit</h1>
-          <p className="text-sm text-muted-foreground">{formatDisplayDate()}</p>
+          <p className="text-sm capitalize text-muted-foreground">{formatDisplayDate()}</p>
         </div>
 
-        {habitList.length > 0 && (
+        {habitList().length > 0 && (
           <div className="relative flex items-center justify-center">
-            <ProgressRing progress={progress} />
+            <ProgressRing progress={stats.progress} />
             <span className="absolute text-xs font-semibold text-foreground">
-              {completed.length}/{habitList.length}
+              {stats.completed}/{stats.total}
             </span>
           </div>
         )}
       </header>
 
-      <main className="flex-1 py-4">
-        <HabitList />
-      </main>
+      <Tabs defaultValue="today" className="flex-1 py-2">
+        <TabsList className="w-full">
+          <TabsTrigger value="today" className="flex-1">
+            Сегодня
+          </TabsTrigger>
+          <TabsTrigger value="history" className="flex-1">
+            История
+          </TabsTrigger>
+        </TabsList>
 
-      <div className="fixed inset-x-0 bottom-0 flex justify-center pb-6 pointer-events-none">
+        <TabsContent value="today" className="py-3">
+          {hydrated ? <HabitList /> : <LoadingSkeleton />}
+        </TabsContent>
+
+        <TabsContent value="history" className="py-3">
+          {hydrated ? <HabitHistory /> : <LoadingSkeleton />}
+        </TabsContent>
+      </Tabs>
+
+      <div className="pointer-events-none fixed inset-x-0 bottom-0 flex justify-center pb-4">
         <Button
           size="lg"
           className="pointer-events-auto gap-1.5 rounded-full px-5 shadow-lg"
           onClick={() => openAddDrawer()}
         >
-          <Plus className="size-5" />
-          Add habit
+          <Plus data-icon="inline-start" />
+          Добавить привычку
         </Button>
       </div>
 
       <HabitFormDrawer />
     </div>
   );
-};
+}, "App");
 
 export default App;

@@ -10,11 +10,38 @@ export const toDateString = (date: Date = new Date()): string => {
 export const today = (): string => toDateString(new Date());
 
 export const formatDisplayDate = (date: Date = new Date()): string =>
-  date.toLocaleDateString("en-US", {
+  date.toLocaleDateString("ru-RU", {
     day: "numeric",
     month: "long",
     weekday: "long",
   });
+
+export const formatTime = (ts?: number): string | null => {
+  if (!ts) {
+    return null;
+  }
+  return new Date(ts).toLocaleTimeString("ru-RU", { hour: "2-digit", minute: "2-digit" });
+};
+
+export const formatHistoryDate = (dateStr: string): string => {
+  const todayStr = today();
+  if (dateStr === todayStr) {
+    return "Сегодня";
+  }
+
+  const yesterday = new Date();
+  yesterday.setDate(yesterday.getDate() - 1);
+  if (dateStr === toDateString(yesterday)) {
+    return "Вчера";
+  }
+
+  const date = new Date(`${dateStr}T00:00:00`);
+  return date.toLocaleDateString("ru-RU", {
+    day: "numeric",
+    month: "long",
+    weekday: "short",
+  });
+};
 
 export const daysBetween = (a: string, b: string): number => {
   const dateA = new Date(a).getTime();

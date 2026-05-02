@@ -22,6 +22,7 @@ Write code that is **accessible, performant, type-safe, and maintainable**. Focu
 - Prefer `unknown` over `any` when the type is genuinely unknown
 - Use const assertions (`as const`) for immutable values and literal types
 - Leverage TypeScript's type narrowing instead of type assertions
+- Avoid `as` type assertions — use type narrowing, explicit annotations, or generics instead. The only exceptions are CSS custom properties (`as React.CSSProperties`) and `as const`
 - Use meaningful variable names instead of magic numbers - extract constants with descriptive names
 
 ### Modern JavaScript/TypeScript
