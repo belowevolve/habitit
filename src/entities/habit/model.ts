@@ -1,225 +1,217 @@
-import { action, atom, computed, reatomBoolean, reatomMap, withIndexedDb } from "@reatom/core";
+import { action, atom, computed, withAsync, withAsyncData, wrap } from "@reatom/core";
 
-import { today, toDateString } from "@/shared/lib/date";
+import { today } from "@/shared/lib/date";
 
-import { getStrategy } from "./tracking-strategies";
-import type { Completion, Habit, HabitCompletionStatus, NewHabit } from "./types";
+import { completionApi, habitApi } from "./api";
+import type { Completion, Habit, HabitType } from "./types";
+import { ALL_DAYS, HABIT_TYPES } from "./types";
 
-export const isHydrated = atom(false, "app.hydrated");
-setTimeout(() => {
-  isHydrated.set(true);
-}, 100);
+// --- Habits ---
 
-export const habits = reatomMap<Habit["id"], Habit>(new Map(), "habits").extend(
-  withIndexedDb({
-    fromSnapshot: (raw) => {
-      isHydrated.set(true);
-      return new Map(raw as Map<string, Habit>);
-    },
-    key: "habits",
-  }),
+export const habits = computed(async () => await wrap(habitApi.getAll()), "habits").extend(
+  withAsyncData({ initState: [] as Habit[] }),
 );
 
-export const habitList = computed(() => [...habits().values()], "habitList");
+export const selectedDate = atom(today(), "habits.selectedDate");
 
-export const completions = reatomMap<string, Completion[]>(new Map(), "completions").extend(
-  withIndexedDb({
-    key: "completions",
-  }),
-);
+export const completions = computed(async () => {
+  const date = selectedDate();
+  return await wrap(completionApi.getByDate(date));
+}, "habits.completions").extend(withAsyncData({ initState: [] as Completion[] }));
 
-export const addHabit = action((data: NewHabit) => {
-  const id = crypto.randomUUID();
-  habits.set(id, { ...data, createdAt: Date.now(), id });
-}, "habits.add");
-
-export const editHabit = action((id: string, data: NewHabit) => {
-  const existing = habits().get(id);
-  if (!existing) {
-    return;
-  }
-  habits.set(id, { ...existing, ...data });
-}, "habits.edit");
-
-export const deleteHabit = action((id: string) => {
-  habits.delete(id);
-  completions.delete(id);
-}, "habits.delete");
-
-export const toggleCompletion = action((habitId: string) => {
-  const dateStr = today();
-  const list = completions().get(habitId) ?? [];
-  const exists = list.some((c) => c.date === dateStr && !c.slot);
-  if (exists) {
-    completions.set(
-      habitId,
-      list.filter((c) => !(c.date === dateStr && !c.slot)),
-    );
-  } else {
-    completions.set(habitId, [...list, { completedAt: Date.now(), date: dateStr, habitId }]);
-  }
-}, "completions.toggle");
-
-export const incrementCompletion = action((habitId: string, step = 1) => {
-  const dateStr = today();
-  const list = completions().get(habitId) ?? [];
-  const idx = list.findIndex((c) => c.date === dateStr && !c.slot);
-  if (idx === -1) {
-    completions.set(habitId, [
-      ...list,
-      { completedAt: Date.now(), date: dateStr, habitId, value: step },
-    ]);
-  } else {
-    completions.set(
-      habitId,
-      list.with(idx, {
-        ...list[idx],
-        completedAt: Date.now(),
-        value: (list[idx].value ?? 0) + step,
-      }),
-    );
-  }
-}, "completions.increment");
-
-export const decrementCompletion = action((habitId: string, step = 1) => {
-  const dateStr = today();
-  const list = completions().get(habitId) ?? [];
-  const idx = list.findIndex((c) => c.date === dateStr && !c.slot);
-  if (idx === -1) {
-    return;
-  }
-  const current = list[idx].value ?? 0;
-  if (current <= step) {
-    completions.set(
-      habitId,
-      list.filter((_, i) => i !== idx),
-    );
-  } else {
-    completions.set(habitId, list.with(idx, { ...list[idx], value: current - step }));
-  }
-}, "completions.decrement");
-
-export const toggleSlotCompletion = action((habitId: string, slot: string) => {
-  const dateStr = today();
-  const list = completions().get(habitId) ?? [];
-  const exists = list.some((c) => c.date === dateStr && c.slot === slot);
-  if (exists) {
-    completions.set(
-      habitId,
-      list.filter((c) => !(c.date === dateStr && c.slot === slot)),
-    );
-  } else {
-    completions.set(habitId, [...list, { completedAt: Date.now(), date: dateStr, habitId, slot }]);
-  }
-}, "completions.toggleSlot");
-
-const getCompletionsForDate = (habitId: string, dateStr: string): Completion[] => {
-  const list = completions().get(habitId) ?? [];
-  return list.filter((c) => c.date === dateStr);
+const getTodayWeekday = (): number => {
+  const day = new Date().getDay();
+  return day === 0 ? 6 : day - 1;
 };
 
-export const todayStats = computed(() => {
-  const habitMap = habits();
-  const total = habitMap.size;
-  if (total === 0) {
-    return { completed: 0, progress: 0, total: 0 };
-  }
+export const visibleHabits = computed((): Habit[] => {
+  const all = habits.data();
+  const weekday = getTodayWeekday();
+  return all.filter((h) => h.schedule.includes(weekday));
+}, "habits.visible");
 
-  const dateStr = today();
-  let completed = 0;
-  for (const habit of habitMap.values()) {
-    const tc = getCompletionsForDate(habit.id, dateStr);
-    if (getStrategy(habit.trackingType).isCompleted(habit, tc)) {
-      completed += 1;
-    }
-  }
-  return { completed, progress: completed / total, total };
-}, "todayStats");
+// --- History ---
 
-export const getHabitCompletionStatus = (habitId: string): HabitCompletionStatus => {
-  const habit = habits().get(habitId);
-  if (!habit) {
-    return { completed: false, completedSlots: [], current: 0, target: 0 };
-  }
-  const tc = getCompletionsForDate(habitId, today());
-  return getStrategy(habit.trackingType).getStatus(habit, tc);
-};
+export const allCompletions = computed(
+  async () => await wrap(completionApi.getAll()),
+  "history.allCompletions",
+).extend(withAsyncData({ initState: [] as Completion[] }));
 
-export const getStreak = (habitId: string): number => {
-  const habit = habits().get(habitId);
-  const all = completions().get(habitId) ?? [];
-  if (!habit || all.length === 0) {
-    return 0;
-  }
+export const historyFilter = atom<string | null>(null, "history.filter");
 
-  const strategy = getStrategy(habit.trackingType);
-  const byDate = new Map<string, Completion[]>();
-  for (const c of all) {
-    const list = byDate.get(c.date) ?? [];
-    list.push(c);
-    byDate.set(c.date, list);
-  }
+export const setHistoryFilter = action((id: string | null) => {
+  historyFilter.set(id);
+}, "history.setFilter");
 
-  let streak = 0;
-  const current = new Date(today());
-  for (;;) {
-    const key = toDateString(current);
-    const day = byDate.get(key) ?? [];
-    if (day.length > 0 && strategy.isCompleted(habit, day)) {
-      streak += 1;
-      current.setDate(current.getDate() - 1);
-    } else {
-      break;
-    }
-  }
-  return streak;
-};
+export const habitList = computed(() => habits.data(), "history.habitList");
 
-export const historyFilter = atom<string | null>(null, "ui.historyFilter");
+export interface HistoryEntry extends Completion {
+  habit?: Habit;
+}
 
-export const groupedHistory = computed(() => {
-  const habitMap = habits();
+export interface HistoryGroup {
+  date: string;
+  entries: HistoryEntry[];
+}
+
+export const groupedHistory = computed((): HistoryGroup[] => {
+  const all = allCompletions.data();
   const filter = historyFilter();
-  const allCompletions = completions();
+  const habitMap = new Map(habits.data().map((h) => [h.id, h]));
 
-  const byDate = new Map<string, (Completion & { habit?: Habit })[]>();
+  const filtered = filter ? all.filter((c) => c.habitId === filter) : all;
 
-  const collect = (habitId: string, list: Completion[]) => {
-    const habit = habitMap.get(habitId);
-    for (const c of list) {
-      const entries = byDate.get(c.date) ?? [];
-      entries.push({ ...c, habit });
-      byDate.set(c.date, entries);
-    }
+  const groups = new Map<string, HistoryEntry[]>();
+  for (const c of filtered) {
+    const entries = groups.get(c.date) ?? [];
+    entries.push({ ...c, habit: habitMap.get(c.habitId) });
+    groups.set(c.date, entries);
+  }
+
+  return [...groups.entries()]
+    .toSorted(([a], [b]) => b.localeCompare(a))
+    .map(([date, entries]) => ({
+      date,
+      entries: entries.toSorted((a, b) => b.completedAt - a.completedAt),
+    }));
+}, "history.grouped");
+
+// --- Form Draft ---
+
+const DEFAULT_COLOR = "#3b82f6";
+const DEFAULT_TARGET = 10;
+const DEFAULT_SLOTS: string[] = ["08:00", "12:00", "18:00"];
+
+export const isDrawerOpen = atom(false, "habitForm.isOpen");
+
+export const habitDraft = {
+  color: atom(DEFAULT_COLOR, "habitDraft.color"),
+  name: atom("", "habitDraft.name"),
+  schedule: atom<number[]>([...ALL_DAYS], "habitDraft.schedule"),
+  slots: atom<string[]>([...DEFAULT_SLOTS], "habitDraft.slots"),
+  target: atom(DEFAULT_TARGET, "habitDraft.target"),
+  type: atom<HabitType>(HABIT_TYPES.boolean, "habitDraft.type"),
+};
+
+export const resetDraft = action(() => {
+  habitDraft.name.set("");
+  habitDraft.type.set(HABIT_TYPES.boolean);
+  habitDraft.color.set(DEFAULT_COLOR);
+  habitDraft.target.set(DEFAULT_TARGET);
+  habitDraft.schedule.set([...ALL_DAYS]);
+  habitDraft.slots.set([...DEFAULT_SLOTS]);
+}, "habitDraft.reset");
+
+export const openHabitForm = action(() => {
+  resetDraft();
+  isDrawerOpen.set(true);
+}, "habitForm.open");
+
+export const closeHabitForm = action(() => {
+  isDrawerOpen.set(false);
+}, "habitForm.close");
+
+export const createHabitFromDraft = action(async () => {
+  const name = habitDraft.name().trim();
+  if (!name) {
+    return;
+  }
+
+  const type = habitDraft.type();
+  const base = {
+    color: habitDraft.color(),
+    createdAt: Date.now(),
+    id: crypto.randomUUID(),
+    name,
+    schedule: habitDraft.schedule(),
   };
 
-  if (filter) {
-    collect(filter, allCompletions.get(filter) ?? []);
-  } else {
-    for (const [habitId, list] of allCompletions) {
-      collect(habitId, list);
+  let habit: Habit;
+  switch (type) {
+    case HABIT_TYPES.boolean: {
+      habit = { ...base, type: HABIT_TYPES.boolean };
+      break;
+    }
+    case HABIT_TYPES.counter: {
+      habit = { ...base, target: habitDraft.target(), type: HABIT_TYPES.counter };
+      break;
+    }
+    case HABIT_TYPES.schedule: {
+      habit = { ...base, slots: habitDraft.slots(), type: HABIT_TYPES.schedule };
+      break;
+    }
+    default: {
+      const _exhaustive: never = type;
+      throw new Error(`Unknown habit type: ${_exhaustive}`);
     }
   }
 
-  return [...byDate.entries()]
-    .toSorted(([a], [b]) => b.localeCompare(a))
-    .map(([date, entries]) => ({ date, entries }));
-}, "groupedHistory");
+  await wrap(habitApi.save(habit));
+  habits.retry();
+  closeHabitForm();
+}, "habitDraft.create").extend(withAsync());
 
-export const selectedHabitId = atom<string | null>(null, "ui.selectedHabitId");
-export const drawerOpen = reatomBoolean(false, "ui.drawerOpen");
+// --- Habit CRUD ---
 
-export const openAddDrawer = action(() => {
-  selectedHabitId.set(null);
-  drawerOpen.setTrue();
-}, "ui.openAddDrawer");
+export const updateHabit = action(async (habit: Habit) => {
+  await wrap(habitApi.save(habit));
+  habits.retry();
+}, "habits.update").extend(withAsync());
 
-export const openEditDrawer = action((id: string) => {
-  selectedHabitId.set(id);
-  drawerOpen.setTrue();
-}, "ui.openEditDrawer");
+export const removeHabit = action(async (id: string) => {
+  await wrap(completionApi.removeByHabit(id));
+  await wrap(habitApi.remove(id));
+  habits.retry();
+  allCompletions.retry();
+}, "habits.remove").extend(withAsync());
 
-export const closeDrawer = action(() => {
-  drawerOpen.setFalse();
-  selectedHabitId.set(null);
-}, "ui.closeDrawer");
+// --- Completions ---
+
+export const toggleCompletion = action(async (habitId: string, slot?: string) => {
+  const date = selectedDate();
+  const current = completions.data();
+
+  const existing =
+    slot === undefined
+      ? current.find((c) => c.habitId === habitId)
+      : current.find((c) => c.habitId === habitId && c.slot === slot);
+
+  if (existing) {
+    await wrap(completionApi.remove(habitId, date, slot));
+  } else {
+    const completion: Completion = {
+      completedAt: Date.now(),
+      date,
+      habitId,
+      id: crypto.randomUUID(),
+      ...(slot === undefined ? {} : { slot }),
+      value: 1,
+    };
+    await wrap(completionApi.save(completion));
+  }
+
+  completions.retry();
+  allCompletions.retry();
+}, "habits.toggleCompletion").extend(withAsync());
+
+export const setCounterValue = action(async (habitId: string, value: number) => {
+  const date = selectedDate();
+  const current = completions.data();
+  const existing = current.find((c) => c.habitId === habitId);
+
+  if (value <= 0 && existing) {
+    await wrap(completionApi.remove(habitId, date));
+  } else if (value > 0) {
+    const completion: Completion = {
+      completedAt: Date.now(),
+      date,
+      habitId,
+      id: existing?.id ?? crypto.randomUUID(),
+      value,
+    };
+    await wrap(completionApi.save(completion));
+  }
+
+  completions.retry();
+  allCompletions.retry();
+}, "habits.setCounterValue").extend(withAsync());

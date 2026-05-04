@@ -1,51 +1,42 @@
-export const HABIT_TRACKING_TYPE = {
-  BOOLEAN: "BOOLEAN",
-  NUMERIC: "NUMERIC",
-  SCHEDULE: "SCHEDULE",
+export const HABIT_TYPES = {
+  boolean: "boolean",
+  counter: "counter",
+  schedule: "schedule",
 } as const;
 
-export type TrackingType = (typeof HABIT_TRACKING_TYPE)[keyof typeof HABIT_TRACKING_TYPE];
+export type HabitType = (typeof HABIT_TYPES)[keyof typeof HABIT_TYPES];
 
-interface HabitBase {
-  trackingType: TrackingType;
+export const ALL_DAYS: readonly number[] = [0, 1, 2, 3, 4, 5, 6];
+
+export interface HabitBase {
   id: string;
-  title: string;
-  emoji: string;
-  frequency: "daily" | "weekly";
+  name: string;
+  color: string;
+  schedule: number[];
   createdAt: number;
 }
 
-export interface BooleanHabit extends HabitBase {
-  trackingType: typeof HABIT_TRACKING_TYPE.BOOLEAN;
-}
+export type BooleanHabit = HabitBase & {
+  type: typeof HABIT_TYPES.boolean;
+};
 
-export interface NumericHabit extends HabitBase {
-  trackingType: typeof HABIT_TRACKING_TYPE.NUMERIC;
+export type CounterHabit = HabitBase & {
+  type: typeof HABIT_TYPES.counter;
   target: number;
-}
+};
 
-export interface ScheduleHabit extends HabitBase {
-  trackingType: typeof HABIT_TRACKING_TYPE.SCHEDULE;
+export type ScheduleHabit = HabitBase & {
+  type: typeof HABIT_TYPES.schedule;
   slots: string[];
-}
+};
 
-export type Habit = BooleanHabit | NumericHabit | ScheduleHabit;
-
-type DistributiveOmit<T, K extends string> = T extends unknown ? Omit<T, K> : never;
-
-export type NewHabit = DistributiveOmit<Habit, "id" | "createdAt">;
+export type Habit = BooleanHabit | CounterHabit | ScheduleHabit;
 
 export interface Completion {
-  habitId: Habit["id"];
+  id: string;
+  habitId: string;
   date: string;
-  completedAt: number;
-  value?: number;
+  value: number;
   slot?: string;
-}
-
-export interface HabitCompletionStatus {
-  completed: boolean;
-  completedSlots: string[];
-  current: number;
-  target: number;
+  completedAt: number;
 }
